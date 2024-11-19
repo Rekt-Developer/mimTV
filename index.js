@@ -3,7 +3,6 @@ const video = document.getElementById("videoPlayer");
 const videoLoading = document.getElementById("videoLoading");
 const channelLoading = document.getElementById("channelLoading");
 const channelGrid = document.getElementById("channelGrid");
-const searchButton = document.getElementById("searchButton");
 let player;
 let channels = [];
 
@@ -35,7 +34,7 @@ function loadVideo(url, channelName) {
             debug: false,
             enableWorker: true,
             lowLatencyMode: true,
-            backBufferLength: 90
+            backBufferLength: 90,
         });
 
         hls.loadSource(url);
@@ -113,17 +112,27 @@ function showMessage(text, type = 'info') {
 // Parse M3U file with improved error handling and CORS handling
 async function loadChannels() {
     try {
+        showMessage("Loading channels...", 'info');
         const response = await fetch(playlistUrl, {
+            method: 'GET',
             mode: 'cors',
             credentials: 'omit',
             headers: {
-                'Origin': window.location.origin
+                'Accept': 'text/plain'
             }
         });
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const text = await response.text();
         channels = await parseAndValidateM3U(text);
-        if (channels.length === 0) throw new Error("No valid channels found in playlist");
+        
+        if (channels.length === 0) {
+            throw new Error("No valid channels found in playlist");
+        }
+        
         displayChannels(channels);
         showMessage(`Loaded ${channels.length} channels successfully`, 'success');
     } catch (error) {
@@ -173,7 +182,10 @@ function isValidUrl(string) {
 // Check if stream is valid
 async function isStreamValid(url) {
     try {
-        const response = await fetch(url, { method: 'HEAD', mode: 'no-cors' });
+        const response = await fetch(url, { 
+            method: 'HEAD',
+            mode: 'no-cors'
+        });
         return true; // If we get here, the stream is likely valid
     } catch (error) {
         console.warn(`Invalid stream: ${url}`, error);
@@ -245,7 +257,6 @@ function filterChannels() {
 
 // Add search input event listener
 document.getElementById("searchInput").addEventListener("input", filterChannels);
-searchButton.addEventListener("click", filterChannels);
 
 // Initialize the application
 document.addEventListener("DOMContentLoaded", () => {
