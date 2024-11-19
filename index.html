@@ -146,7 +146,6 @@
             object-fit: cover;
             border-radius: 0.313rem;
             margin-bottom: 0.625rem;
-            loading: lazy;
         }
 
         .channel span {
@@ -251,7 +250,7 @@
     </footer>
 
     <script>
-        const playlistUrl = "https://your-backend-proxy/playlist.m3u8"; // Replace with your backend proxy URL
+        const playlistUrl = "https://raw.githubusercontent.com/Rekt-Developer/mimTV/main/SumonNetwork-Playlist-official.m3u8";
         const video = document.getElementById("videoPlayer");
         const videoLoading = document.getElementById("videoLoading");
         const channelLoading = document.getElementById("channelLoading");
@@ -279,9 +278,9 @@
             
             if (Hls.isSupported()) {
                 const hls = new Hls({
-                    maxLoadingDelay: 4,
-                    maxRetryCount: 2,
-                    debug: false
+                    xhrSetup: function(xhr, url) {
+                        xhr.withCredentials = true; // Try to send cookies & auth headers
+                    }
                 });
 
                 hls.loadSource(url);
@@ -298,6 +297,7 @@
                     if (data.fatal) {
                         videoLoading.style.display = "none";
                         showMessage(`Error playing ${channelName}. Please try another channel.`, 'error');
+                        console.error('HLS.js error:', data);
                         hls.destroy();
                     }
                 });
@@ -318,7 +318,6 @@
             messageDiv.className = `message ${type}-message`;
             messageDiv.textContent = text;
             messageDiv.setAttribute('role', 'alert');
-            messageDiv.style.display = 'block';
             
             const existingMessage = document.querySelector(".message");
             if (existingMessage) {
@@ -326,10 +325,7 @@
             }
             
             document.body.insertBefore(messageDiv, document.body.firstChild);
-            setTimeout(() => {
-                messageDiv.style.display = 'none';
-                messageDiv.remove();
-            }, 5000);
+            setTimeout(() => messageDiv.remove(), 5000);
         }
 
         // Parse M3U file with improved error handling
