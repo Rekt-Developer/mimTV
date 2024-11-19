@@ -3,21 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="MimTV - Advanced Streaming Solution">
-    <meta name="keywords" content="MimTV, Advanced HLS, IPTV, Free Streaming, Dynamic Playlist Parsing">
+    <meta name="description" content="MimTV - Advanced Streaming Solution with Dynamic Playlist Parsing">
+    <meta name="keywords" content="MimTV, Advanced HLS, IPTV, Free Streaming, Dynamic Playlist">
     <meta name="author" content="Rekt Developers">
     <title>MimTV | Advanced Stream Player</title>
     <link rel="icon" href="https://i.ibb.co/XpXz3b1/Picsart-24-10-15-01-07-11-687.png" type="image/x-icon">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/plyr@3.6.2/dist/plyr.css">
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.3.2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/plyr@3.6.12/dist/plyr.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.css">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.10"></script>
+    <script src="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.min.js"></script>
     <style>
         :root {
             --primary-color: #4CAF50;
+            --primary-dark: #45a049;
             --background-color: #121212;
-            --secondary-background: #222;
+            --secondary-background: #1e1e1e;
             --text-color: #ffffff;
-            --header-background: #444;
+            --header-background: #2c2c2c;
+            --error-color: #ff5252;
+            --success-color: #66bb6a;
+            --channel-hover: #2e7d32;
         }
 
         * {
@@ -27,10 +31,13 @@
         }
 
         body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background-color: var(--background-color);
             color: var(--text-color);
-            line-height: 1.5;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         .navbar {
@@ -73,8 +80,10 @@
             font-weight: 500;
         }
 
-        .search-bar button:hover {
-            background-color: #45a049;
+        .search-bar button:hover,
+        .search-bar button:focus {
+            background-color: var(--primary-dark);
+            outline: none;
         }
 
         .video-player {
@@ -91,10 +100,8 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
 
-        video {
-            width: 100%;
-            border-radius: 0.5rem;
-            border: 2px solid var(--primary-color);
+        .plyr {
+            --plyr-color-main: var(--primary-color);
         }
 
         .loading {
@@ -105,7 +112,7 @@
             padding: 1rem;
         }
 
-        .channel-list {
+        .channel-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
             gap: 1.25rem;
@@ -126,8 +133,9 @@
             transition: all 0.3s ease;
         }
 
-        .channel:hover {
-            background-color: var(--primary-color);
+        .channel:hover,
+        .channel:focus {
+            background-color: var(--channel-hover);
             transform: translateY(-3px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
@@ -138,6 +146,7 @@
             object-fit: cover;
             border-radius: 0.313rem;
             margin-bottom: 0.625rem;
+            loading: lazy;
         }
 
         .channel span {
@@ -152,7 +161,31 @@
             padding: 1rem;
             color: var(--text-color);
             border-top: 2px solid var(--primary-color);
-            margin-top: 2rem;
+            margin-top: auto;
+        }
+
+        .message {
+            padding: 1rem;
+            border-radius: 0.313rem;
+            margin: 1rem auto;
+            max-width: 600px;
+            text-align: center;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .error-message {
+            background-color: var(--error-color);
+            color: white;
+        }
+
+        .success-message {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         @media (max-width: 768px) {
@@ -161,7 +194,7 @@
                 padding: 0.75rem;
             }
 
-            .channel-list {
+            .channel-grid {
                 grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
                 gap: 1rem;
                 padding: 1rem;
@@ -172,52 +205,65 @@
             }
         }
 
-        .error-message {
-            background-color: #ff5252;
-            color: white;
-            padding: 1rem;
-            border-radius: 0.313rem;
-            margin: 1rem auto;
-            max-width: 600px;
-            text-align: center;
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
         }
     </style>
 </head>
 <body>
-    <div class="navbar">MimTV - Advanced Stream Player</div>
+    <header class="navbar" role="banner">
+        <h1>MimTV - Advanced Stream Player</h1>
+    </header>
 
-    <div class="search-bar">
-        <input 
-            type="text" 
-            id="searchInput" 
-            placeholder="Search channels..."
-            aria-label="Search channels"
-        >
-        <button onclick="filterChannels()">Search</button>
-    </div>
-
-    <div class="video-player">
-        <div id="videoLoading" class="loading" style="display: none;">Loading video...</div>
-        <div class="video-container">
-            <video id="videoPlayer" controls crossorigin="anonymous" playsinline></video>
+    <main role="main">
+        <div class="search-bar">
+            <label for="searchInput" class="sr-only">Search channels</label>
+            <input 
+                type="text" 
+                id="searchInput" 
+                placeholder="Search channels..."
+                aria-label="Search channels"
+            >
+            <button type="button" onclick="filterChannels()" aria-label="Search">Search</button>
         </div>
-    </div>
 
-    <div id="channelLoading" class="loading">Loading channels...</div>
-    <div id="channelList" class="channel-list" style="display: none;"></div>
+        <div class="video-player">
+            <div id="videoLoading" class="loading" aria-live="polite" style="display: none;">Loading video...</div>
+            <div class="video-container">
+                <video id="videoPlayer" controls crossorigin="anonymous" playsinline></video>
+            </div>
+        </div>
 
-    <div class="footer">© 2024 MimTV. Advanced Streaming by Rekt Developers.</div>
+        <div id="channelLoading" class="loading" aria-live="polite">Loading channels...</div>
+        <div id="channelGrid" class="channel-grid" style="display: none;" role="list"></div>
+    </main>
+
+    <footer class="footer" role="contentinfo">
+        <p>© 2024 MimTV. Advanced Streaming by Rekt Developers.</p>
+    </footer>
 
     <script>
-        const playlistUrl = "https://cors-anywhere.herokuapp.com/https://raw.githubusercontent.com/Rekt-Developer/mimTV/main/SumonNetwork-Playlist-official.m3u8";
+        const playlistUrl = "https://your-backend-proxy/playlist.m3u8"; // Replace with your backend proxy URL
         const video = document.getElementById("videoPlayer");
         const videoLoading = document.getElementById("videoLoading");
         const channelLoading = document.getElementById("channelLoading");
-        const channelList = document.getElementById("channelList");
+        const channelGrid = document.getElementById("channelGrid");
         let player;
+        let channels = [];
 
         // Initialize Plyr
         function initPlayer() {
+            if (player) {
+                player.destroy();
+            }
             player = new Plyr(video, {
                 controls: [
                     'play-large', 'play', 'progress', 'current-time',
@@ -227,11 +273,8 @@
         }
 
         // Load video using HLS.js with error handling
-        function loadVideo(url) {
-            if (player) {
-                player.destroy();
-            }
-            
+        function loadVideo(url, channelName) {
+            showMessage(`Loading ${channelName}...`, 'success');
             videoLoading.style.display = "block";
             
             if (Hls.isSupported()) {
@@ -248,12 +291,13 @@
                     initPlayer();
                     video.play().catch(e => console.log("Auto-play prevented:", e));
                     videoLoading.style.display = "none";
+                    showMessage(`Now playing: ${channelName}`, 'success');
                 });
 
                 hls.on(Hls.Events.ERROR, (event, data) => {
                     if (data.fatal) {
                         videoLoading.style.display = "none";
-                        showError("Error playing video. Please try another channel.");
+                        showMessage(`Error playing ${channelName}. Please try another channel.`, 'error');
                         hls.destroy();
                     }
                 });
@@ -262,24 +306,30 @@
                 initPlayer();
                 video.play().catch(e => console.log("Auto-play prevented:", e));
                 videoLoading.style.display = "none";
+                showMessage(`Now playing: ${channelName}`, 'success');
             } else {
-                showError("Your browser does not support HLS playback.");
+                showMessage("Your browser does not support HLS playback.", 'error');
             }
         }
 
-        // Show error message
-        function showError(message) {
-            const errorDiv = document.createElement("div");
-            errorDiv.className = "error-message";
-            errorDiv.textContent = message;
+        // Show message with auto-dismissal
+        function showMessage(text, type = 'info') {
+            const messageDiv = document.createElement("div");
+            messageDiv.className = `message ${type}-message`;
+            messageDiv.textContent = text;
+            messageDiv.setAttribute('role', 'alert');
+            messageDiv.style.display = 'block';
             
-            const existingError = document.querySelector(".error-message");
-            if (existingError) {
-                existingError.remove();
+            const existingMessage = document.querySelector(".message");
+            if (existingMessage) {
+                existingMessage.remove();
             }
             
-            videoLoading.parentNode.insertBefore(errorDiv, videoLoading);
-            setTimeout(() => errorDiv.remove(), 5000);
+            document.body.insertBefore(messageDiv, document.body.firstChild);
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+                messageDiv.remove();
+            }, 5000);
         }
 
         // Parse M3U file with improved error handling
@@ -288,19 +338,21 @@
                 const response = await fetch(playlistUrl);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const text = await response.text();
-                const channels = parseM3U(text);
-                if (channels.length === 0) throw new Error("No channels found in playlist");
+                channels = parseM3U(text);
+                if (channels.length === 0) throw new Error("No valid channels found in playlist");
                 displayChannels(channels);
+                showMessage(`Loaded ${channels.length} channels successfully`, 'success');
             } catch (error) {
                 channelLoading.textContent = `Failed to load channels: ${error.message}`;
                 console.error("Channel loading error:", error);
+                showMessage(`Error: ${error.message}`, 'error');
             }
         }
 
-        // Parse M3U playlist with validation
+        // Parse M3U playlist with enhanced validation
         function parseM3U(data) {
             const lines = data.split("\n");
-            const channels = [];
+            const parsedChannels = [];
             let currentChannel = {};
 
             lines.forEach(line => {
@@ -314,12 +366,12 @@
                 } else if (line && !line.startsWith("#")) {
                     currentChannel.url = line;
                     if (currentChannel.url && isValidUrl(currentChannel.url)) {
-                        channels.push({ ...currentChannel });
+                        parsedChannels.push({ ...currentChannel });
                     }
                 }
             });
 
-            return channels;
+            return parsedChannels;
         }
 
         // Validate URL
@@ -332,20 +384,27 @@
             }
         }
 
-        // Display channels with lazy loading for images
-        function displayChannels(channels) {
-            channelList.innerHTML = "";
-            channels.forEach(channel => {
+        // Display channels with lazy loading for images and accessibility improvements
+        function displayChannels(channelsToDisplay) {
+            channelGrid.innerHTML = "";
+            channelsToDisplay.forEach((channel, index) => {
                 const channelDiv = document.createElement("div");
                 channelDiv.className = "channel";
-                channelDiv.onclick = () => loadVideo(channel.url);
+                channelDiv.setAttribute('role', 'listitem');
+                channelDiv.tabIndex = 0;
+                channelDiv.onclick = () => loadVideo(channel.url, channel.name);
+                channelDiv.onkeypress = (e) => {
+                    if (e.key === 'Enter') {
+                        loadVideo(channel.url, channel.name);
+                    }
+                };
 
                 if (channel.logo) {
                     const img = document.createElement("img");
                     img.loading = "lazy";
                     img.src = channel.logo;
                     img.alt = `${channel.name} logo`;
-                    img.onerror = () => img.style.display = "none";
+                    img.onerror = () => img.src = 'https://via.placeholder.com/150?text=No+Image';
                     channelDiv.appendChild(img);
                 }
 
@@ -353,25 +412,24 @@
                 name.textContent = channel.name;
                 channelDiv.appendChild(name);
 
-                channelList.appendChild(channelDiv);
+                channelGrid.appendChild(channelDiv);
             });
             
             channelLoading.style.display = "none";
-            channelList.style.display = "grid";
+            channelGrid.style.display = "grid";
         }
 
-        // Filter channels with debouncing
+        // Filter channels with debouncing and performance optimization
         let filterTimeout;
         function filterChannels() {
             clearTimeout(filterTimeout);
             filterTimeout = setTimeout(() => {
                 const searchTerm = document.getElementById("searchInput").value.toLowerCase();
-                const channels = document.querySelectorAll(".channel");
-                
-                channels.forEach(channel => {
-                    const name = channel.textContent.toLowerCase();
-                    channel.style.display = name.includes(searchTerm) ? "" : "none";
-                });
+                const filteredChannels = channels.filter(channel => 
+                    channel.name.toLowerCase().includes(searchTerm)
+                );
+                displayChannels(filteredChannels);
+                showMessage(`Found ${filteredChannels.length} channels`, 'info');
             }, 300);
         }
 
@@ -382,6 +440,10 @@
         document.addEventListener("DOMContentLoaded", () => {
             loadChannels();
         });
+
+        // Handle network status changes
+        window.addEventListener('online', () => showMessage("You are back online", 'success'));
+        window.addEventListener('offline', () => showMessage("You are offline. Some features may be unavailable.", 'error'));
     </script>
 </body>
 </html>
