@@ -4,158 +4,203 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="MimTV - Live Streaming from Sumon Network Playlist">
-    <meta name="keywords" content="MimTV, Live TV, HLS Player, IPTV, Free Streaming, Live Sports, Movies">
+    <meta name="description" content="MimTV - Advanced Streaming Solution">
+    <meta name="keywords" content="MimTV, Advanced HLS, IPTV, Free Streaming, Dynamic Playlist Parsing">
     <meta name="author" content="Rekt Developers">
-    <title>MimTV | Stream Live TV</title>
+    <title>MimTV | Advanced Stream Player</title>
     <link rel="icon" href="https://i.ibb.co/XpXz3b1/Picsart-24-10-15-01-07-11-687.png" type="image/x-icon">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/plyr@3.6.2/dist/plyr.css">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.3.2"></script>
     <script src="https://cdn.jsdelivr.net/npm/plyr@3.6.12/dist/plyr.min.js"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #121212;
-            color: white;
+            font-family: 'Roboto', sans-serif;
             margin: 0;
             padding: 0;
+            background-color: #121212;
+            color: white;
         }
 
         .navbar {
-            background-color: #333;
+            background-color: #444;
             color: #4CAF50;
-            padding: 10px 20px;
+            padding: 15px;
             text-align: center;
             font-size: 24px;
             font-weight: bold;
             border-bottom: 2px solid #4CAF50;
         }
 
+        .search-bar {
+            margin: 20px auto;
+            width: 90%;
+            max-width: 600px;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .search-bar input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #4CAF50;
+            border-radius: 5px;
+            background-color: #222;
+            color: white;
+        }
+
+        .search-bar button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .search-bar button:hover {
+            background-color: #45a049;
+        }
+
         .video-player {
             margin: 20px auto;
             width: 90%;
             max-width: 800px;
-            background-color: #222;
-            border-radius: 10px;
-            padding: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
         }
 
-        .video-player video {
+        .video-container {
+            position: relative;
+            background-color: #222;
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        video {
             width: 100%;
             height: auto;
-            border: 2px solid #4CAF50;
             border-radius: 8px;
+            border: 2px solid #4CAF50;
         }
 
         .loading {
             text-align: center;
-            font-size: 18px;
-            margin-top: 10px;
             color: #4CAF50;
+            font-size: 18px;
+            margin: 10px 0;
         }
 
         .channel-list {
             display: flex;
             flex-wrap: wrap;
+            gap: 20px;
             justify-content: center;
             margin-top: 20px;
         }
 
-        .channel-list a {
-            background-color: #333;
-            margin: 10px;
-            padding: 10px 20px;
-            border-radius: 5px;
-            text-decoration: none;
-            color: white;
-            transition: background-color 0.3s;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        .channel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            background-color: #222;
+            border: 1px solid #4CAF50;
+            border-radius: 8px;
+            padding: 10px;
+            width: 150px;
+            cursor: pointer;
+            transition: transform 0.3s, background-color 0.3s;
         }
 
-        .channel-list a:hover {
+        .channel:hover {
             background-color: #4CAF50;
+            color: black;
+            transform: translateY(-5px);
         }
 
-        .channel-list img {
-            width: 80px;
-            height: 50px;
+        .channel img {
+            width: 120px;
+            height: 80px;
             object-fit: cover;
             border-radius: 5px;
-            margin-bottom: 5px;
+            margin-bottom: 10px;
         }
 
         .footer {
             background-color: #333;
-            color: white;
             text-align: center;
             padding: 10px;
-            margin-top: 20px;
+            color: white;
             border-top: 2px solid #4CAF50;
+            margin-top: 20px;
         }
 
         @media (max-width: 768px) {
             .navbar {
                 font-size: 18px;
             }
+            .channel {
+                width: 120px;
+            }
         }
     </style>
 </head>
 
 <body>
-    <!-- Navbar -->
-    <div class="navbar">MimTV - Sumon Network Playlist</div>
+    <div class="navbar">MimTV - Advanced Stream Player</div>
 
-    <!-- Video Player Section -->
-    <div class="video-player">
-        <div id="videoLoading" class="loading" style="display: none;">Loading video...</div>
-        <video id="videoPlayer" controls crossorigin="anonymous" playsinline></video>
+    <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Search channels...">
+        <button onclick="filterChannels()">Search</button>
     </div>
 
-    <!-- Channel List Section -->
+    <div class="video-player">
+        <div id="videoLoading" class="loading" style="display: none;">Loading video...</div>
+        <div class="video-container">
+            <video id="videoPlayer" controls crossorigin="anonymous" playsinline></video>
+        </div>
+    </div>
+
     <div id="channelLoading" class="loading">Loading channels...</div>
     <div id="channelList" class="channel-list" style="display: none;"></div>
 
-    <!-- Footer -->
-    <div class="footer">© 2024 MimTV. All rights reserved.</div>
+    <div class="footer">© 2024 MimTV. Advanced Streaming by Rekt Developers.</div>
 
-    <!-- JavaScript Logic -->
     <script>
-        const playlistUrl = "https://raw.githubusercontent.com/Rekt-Developer/mimTV/main/SumonNetwork-Playlist-official.m3u8";
+        const playlistUrl = "https://cors-anywhere.herokuapp.com/https://raw.githubusercontent.com/Rekt-Developer/mimTV/main/SumonNetwork-Playlist-official.m3u8";
         const video = document.getElementById("videoPlayer");
         const videoLoading = document.getElementById("videoLoading");
         const channelLoading = document.getElementById("channelLoading");
         const channelList = document.getElementById("channelList");
 
-        // Function to load video using HLS.js
+        // Load video using HLS.js
         function loadVideo(url) {
+            videoLoading.style.display = "block";
             if (Hls.isSupported()) {
                 const hls = new Hls();
                 hls.loadSource(url);
                 hls.attachMedia(video);
                 hls.on(Hls.Events.MANIFEST_PARSED, () => {
                     video.play();
+                    videoLoading.style.display = "none";
                 });
                 hls.on(Hls.Events.ERROR, (event, data) => {
-                    if (data.fatal) {
-                        alert("Error loading video. Please select another channel.");
-                    }
+                    videoLoading.style.display = "none";
+                    alert("Error playing video. Try another channel.");
                 });
             } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
                 video.src = url;
                 video.play();
+                videoLoading.style.display = "none";
             } else {
-                alert("Your browser does not support HLS streaming.");
+                alert("Your browser does not support HLS playback.");
             }
         }
 
-        // Function to parse M3U file
-        async function loadChannelsFromPlaylist(url) {
+        // Parse M3U file
+        async function loadChannels() {
             try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error("Failed to load playlist.");
-                }
+                const response = await fetch(playlistUrl);
+                if (!response.ok) throw new Error("Failed to load playlist.");
                 const text = await response.text();
                 const channels = parseM3U(text);
                 displayChannels(channels);
@@ -165,7 +210,7 @@
             }
         }
 
-        // Parse M3U content to extract channels
+        // Parse M3U playlist
         function parseM3U(data) {
             const lines = data.split("\n");
             const channels = [];
@@ -184,56 +229,43 @@
             return channels;
         }
 
-        // Display channels dynamically
+        // Display channels
         function displayChannels(channels) {
-            channelList.innerHTML = ""; // Clear the list
-            let validChannels = 0;
+            channelList.innerHTML = "";
             channels.forEach(channel => {
-                // Validate the stream
-                validateStream(channel.url).then(isValid => {
-                    if (isValid) {
-                        const channelButton = document.createElement("a");
-                        channelButton.href = "#";
-                        channelButton.onclick = () => {
-                            loadVideo(channel.url);
-                            return false;
-                        };
+                const channelDiv = document.createElement("div");
+                channelDiv.className = "channel";
+                channelDiv.onclick = () => loadVideo(channel.url);
 
-                        if (channel.logo) {
-                            const img = document.createElement("img");
-                            img.src = channel.logo;
-                            img.alt = channel.name;
-                            channelButton.appendChild(img);
-                        }
+                if (channel.logo) {
+                    const img = document.createElement("img");
+                    img.src = channel.logo;
+                    img.alt = channel.name;
+                    channelDiv.appendChild(img);
+                }
 
-                        channelButton.appendChild(document.createTextNode(channel.name));
-                        channelList.appendChild(channelButton);
-                        validChannels++;
-                    }
+                const name = document.createElement("span");
+                name.textContent = channel.name;
+                channelDiv.appendChild(name);
 
-                    // Show channel list if valid channels exist
-                    if (validChannels > 0) {
-                        channelLoading.style.display = "none";
-                        channelList.style.display = "flex";
-                    } else {
-                        channelLoading.textContent = "No valid channels found.";
-                    }
-                });
+                channelList.appendChild(channelDiv);
+            });
+            channelLoading.style.display = "none";
+            channelList.style.display = "flex";
+        }
+
+        // Filter channels
+        function filterChannels() {
+            const searchTerm = document.getElementById("searchInput").value.toLowerCase();
+            const channels = document.querySelectorAll(".channel");
+            channels.forEach(channel => {
+                const name = channel.textContent.toLowerCase();
+                channel.style.display = name.includes(searchTerm) ? "flex" : "none";
             });
         }
 
-        // Validate a stream URL
-        async function validateStream(url) {
-            try {
-                const response = await fetch(url, { method: "HEAD" });
-                return response.ok;
-            } catch {
-                return false;
-            }
-        }
-
         // Load channels on page load
-        loadChannelsFromPlaylist(playlistUrl);
+        loadChannels();
     </script>
 </body>
 
