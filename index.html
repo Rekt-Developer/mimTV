@@ -98,6 +98,7 @@
             padding: 0.625rem;
             border-radius: 0.625rem;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            aspect-ratio: 16 / 9;
         }
 
         .plyr {
@@ -131,6 +132,7 @@
             padding: 0.625rem;
             cursor: pointer;
             transition: all 0.3s ease;
+            height: 100%;
         }
 
         .channel:hover,
@@ -258,7 +260,7 @@
         let player;
         let channels = [];
 
-        // Initialize Plyr
+        // Initialize Plyr with advanced options
         function initPlayer() {
             if (player) {
                 player.destroy();
@@ -267,17 +269,26 @@
                 controls: [
                     'play-large', 'play', 'progress', 'current-time',
                     'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'
-                ]
+                ],
+                settings: ['captions', 'quality', 'speed'],
+                speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
+                keyboard: { focused: true, global: true },
+                tooltips: { controls: true, seek: true },
+                captions: { active: true, language: 'auto', update: true }
             });
         }
 
-        // Load video using HLS.js with error handling
+        // Advanced HLS player with error handling and quality switching
         function loadVideo(url, channelName) {
             showMessage(`Loading ${channelName}...`, 'success');
             videoLoading.style.display = "block";
             
             if (Hls.isSupported()) {
                 const hls = new Hls({
+                    debug: false,
+                    enableWorker: true,
+                    lowLatencyMode: true,
+                    backBufferLength: 90,
                     xhrSetup: function(xhr, url) {
                         xhr.withCredentials = true; // Try to send cookies & auth headers
                     }
@@ -286,20 +297,47 @@
                 hls.loadSource(url);
                 hls.attachMedia(video);
 
-                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                hls.on(Hls.Events.MANIFEST_PARSED, function(event, data) {
+                    const availableQualities = hls.levels.map((l) => l.height);
+                    
+                    // Update Plyr with new quality levels
+                    player.quality = availableQualities;
+                    
+                    // Set default quality to highest
+                    player.quality = availableQualities[availableQualities.length - 1];
+
                     initPlayer();
                     video.play().catch(e => console.log("Auto-play prevented:", e));
                     videoLoading.style.display = "none";
                     showMessage(`Now playing: ${channelName}`, 'success');
                 });
 
-                hls.on(Hls.Events.ERROR, (event, data) => {
+                hls.on(Hls.Events.ERROR, function(event, data) {
                     if (data.fatal) {
-                        videoLoading.style.display = "none";
-                        showMessage(`Error playing ${channelName}. Please try another channel.`, 'error');
-                        console.error('HLS.js error:', data);
-                        hls.destroy();
+                        switch(data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                showMessage("Network error, trying to recover...", 'error');
+                                hls.startLoad();
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                showMessage("Media error, trying to recover...", 'error');
+                                hls.recoverMediaError();
+                                break;
+                            default:
+                                showMessage(`Unrecoverable error while playing ${channelName}. Please try another channel.`, 'error');
+                                hls.destroy();
+                                break;
+                        }
                     }
+                });
+
+                // Handle quality changes
+                player.on('qualitychange', event => {
+                    hls.levels.forEach((level, levelIndex) => {
+                        if (level.height === event.detail.quality) {
+                            hls.currentLevel = levelIndex;
+                        }
+                    });
                 });
             } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
                 video.src = url;
@@ -400,8 +438,21 @@
                     img.loading = "lazy";
                     img.src = channel.logo;
                     img.alt = `${channel.name} logo`;
-                    img.onerror = () => img.src = 'https://via.placeholder.com/150?text=No+Image';
+                    img.onerror = () => {
+                        img.src = 'https://via.placeholder.com/150?text=No+Image';
+                        img.alt = 'No image available';
+                    };
                     channelDiv.appendChild(img);
+                } else {
+                    const placeholderImg = document.createElement("div");
+                    placeholderImg.style.width = '100%';
+                    placeholderImg.style.height = '80px';
+                    placeholderImg.style.backgroundColor = '#333';
+                    placeholderImg.style.display = 'flex';
+                    placeholderImg.style.alignItems = 'center';
+                    placeholderImg.style.justifyContent = 'center';
+                    placeholderImg.textContent = 'No Image';
+                    channelDiv.appendChild(placeholderImg);
                 }
 
                 const name = document.createElement("span");
@@ -440,6 +491,50 @@
         // Handle network status changes
         window.addEventListener('online', () => showMessage("You are back online", 'success'));
         window.addEventListener('offline', () => showMessage("You are offline. Some features may be unavailable.", 'error'));
+
+        // Automatically hide invalid channels
+        function validateChannel(channel) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve(true);
+                img.onerror = () => resolve(false);
+                img.src = channel.logo;
+
+                // Timeout for logo validation
+                setTimeout(() => resolve(false), 5000);
+            });
+        }
+
+        async function filterInvalidChannels(channels) {
+            const validChannels = [];
+            for (const channel of channels) {
+                if (await validateChannel(channel)) {
+                    validChannels.push(channel);
+                }
+            }
+            return validChannels;
+        }
+
+        // Update loadChannels function to filter invalid channels
+        async function loadChannels() {
+            try {
+                const response = await fetch(playlistUrl);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const text = await response.text();
+                channels = parseM3U(text);
+                if (channels.length === 0) throw new Error("No valid channels found in playlist");
+                
+                showMessage("Validating channels...", 'info');
+                channels = await filterInvalidChannels(channels);
+                
+                displayChannels(channels);
+                showMessage(`Loaded ${channels.length} valid channels successfully`, 'success');
+            } catch (error) {
+                channelLoading.textContent = `Failed to load channels: ${error.message}`;
+                console.error("Channel loading error:", error);
+                showMessage(`Error: ${error.message}`, 'error');
+            }
+        }
     </script>
 </body>
 </html>
