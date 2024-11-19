@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="MimTV - Stream live channels from playlist.">
-    <meta name="keywords" content="MimTV, Live TV, HLS Player, IPTV, Free Streaming">
+    <meta name="description" content="MimTV - Live Streaming from Sumon Network Playlist">
+    <meta name="keywords" content="MimTV, Live TV, HLS Player, IPTV, Free Streaming, Live Sports, Movies">
     <meta name="author" content="Rekt Developers">
     <title>MimTV | Stream Live TV</title>
     <link rel="icon" href="https://i.ibb.co/XpXz3b1/Picsart-24-10-15-01-07-11-687.png" type="image/x-icon">
@@ -77,6 +77,14 @@
             background-color: #4CAF50;
         }
 
+        .channel-list img {
+            width: 80px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 5px;
+            margin-bottom: 5px;
+        }
+
         .footer {
             background-color: #333;
             color: white;
@@ -96,7 +104,7 @@
 
 <body>
     <!-- Navbar -->
-    <div class="navbar">MimTV - Live Playlist Streaming</div>
+    <div class="navbar">MimTV - Sumon Network Playlist</div>
 
     <!-- Video Player Section -->
     <div class="video-player">
@@ -113,7 +121,7 @@
 
     <!-- JavaScript Logic -->
     <script>
-        const playlistUrl = "https://raw.githubusercontent.com/hdoktvltd/hd-live.tv/refs/heads/main/playlist.m3u";
+        const playlistUrl = "https://raw.githubusercontent.com/Rekt-Developer/mimTV/main/SumonNetwork-Playlist-official.m3u8";
         const video = document.getElementById("videoPlayer");
         const videoLoading = document.getElementById("videoLoading");
         const channelLoading = document.getElementById("channelLoading");
@@ -162,14 +170,15 @@
             const lines = data.split("\n");
             const channels = [];
             let currentName = "";
+            let currentLogo = "";
             lines.forEach(line => {
                 if (line.startsWith("#EXTINF:")) {
                     const nameMatch = line.match(/,(.*)$/);
-                    if (nameMatch) {
-                        currentName = nameMatch[1];
-                    }
+                    const logoMatch = line.match(/tvg-logo="(.*?)"/);
+                    currentName = nameMatch ? nameMatch[1] : "Unnamed Channel";
+                    currentLogo = logoMatch ? logoMatch[1] : "";
                 } else if (line && !line.startsWith("#")) {
-                    channels.push({ name: currentName, url: line });
+                    channels.push({ name: currentName, logo: currentLogo, url: line });
                 }
             });
             return channels;
@@ -178,18 +187,49 @@
         // Display channels dynamically
         function displayChannels(channels) {
             channelList.innerHTML = ""; // Clear the list
+            let validChannels = 0;
             channels.forEach(channel => {
-                const channelButton = document.createElement("a");
-                channelButton.textContent = channel.name || "Unnamed Channel";
-                channelButton.href = "#";
-                channelButton.onclick = () => {
-                    loadVideo(channel.url);
-                    return false;
-                };
-                channelList.appendChild(channelButton);
+                // Validate the stream
+                validateStream(channel.url).then(isValid => {
+                    if (isValid) {
+                        const channelButton = document.createElement("a");
+                        channelButton.href = "#";
+                        channelButton.onclick = () => {
+                            loadVideo(channel.url);
+                            return false;
+                        };
+
+                        if (channel.logo) {
+                            const img = document.createElement("img");
+                            img.src = channel.logo;
+                            img.alt = channel.name;
+                            channelButton.appendChild(img);
+                        }
+
+                        channelButton.appendChild(document.createTextNode(channel.name));
+                        channelList.appendChild(channelButton);
+                        validChannels++;
+                    }
+
+                    // Show channel list if valid channels exist
+                    if (validChannels > 0) {
+                        channelLoading.style.display = "none";
+                        channelList.style.display = "flex";
+                    } else {
+                        channelLoading.textContent = "No valid channels found.";
+                    }
+                });
             });
-            channelLoading.style.display = "none";
-            channelList.style.display = "flex";
+        }
+
+        // Validate a stream URL
+        async function validateStream(url) {
+            try {
+                const response = await fetch(url, { method: "HEAD" });
+                return response.ok;
+            } catch {
+                return false;
+            }
         }
 
         // Load channels on page load
